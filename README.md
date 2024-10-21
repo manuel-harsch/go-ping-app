@@ -1,4 +1,4 @@
-# simping - Simple PING statistics
+# go-ping-app - Simple PING stats app
 
 # --- Planning ---
 
