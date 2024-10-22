@@ -1,9 +1,9 @@
 // internal/config.go
-package config
+package internal
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"os"
 )
 
@@ -22,7 +22,7 @@ func LoadConfig(filePath string) (*Config, error) {
 	}
 	defer file.Close()
 
-	bytes, err := ioutil.ReadAll(file)
+	bytes, err := io.ReadAll(file)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,7 @@ func SaveConfig(config *Config, filePath string) error {
 		return err
 	}
 
-	err = ioutil.WriteFile(filePath, bytes, 0644)
+	err = os.WriteFile(filePath, bytes, 0644)
 	if err != nil {
 		return err
 	}
