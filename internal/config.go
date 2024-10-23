@@ -10,8 +10,8 @@ import (
 // Config represents the structure of the JSON configuration file
 type Config struct {
 	Host        string `json:"host"`
-	CycleTime   int    `json:"cycle_time_seconds"` // Ping cycle time in seconds
-	PingTimeout int    `json:"ping_timeout"`       // Ping timeout in milliseconds
+	CycleTime   int    `json:"cycle_time_milliseconds"`   // Ping cycle time in milliseconds
+	PingTimeout int    `json:"ping_timeout_milliseconds"` // Ping timeout in milliseconds
 }
 
 // LoadConfig loads the configuration from a JSON file

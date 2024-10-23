@@ -1,15 +1,33 @@
+// cmd/main.go
 package main
 
 import (
 	"log"
-	"net/http"
+	"os"
+
+	"github.com/manuel-harsch/go-ping-app/internal"
 )
 
-func main() {
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello, World!"))
-	})
+const configFilePath = "config.json"
 
-	log.Println("Server running at http://localhost:8080/")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+func main() {
+	// Check if the configuration file exists
+	if _, err := os.Stat(configFilePath); os.IsNotExist(err) {
+		// File does not exist, create a default configuration
+		log.Println("Config file not found, creating default config.")
+		defaultConfig := internal.DefaultConfig() // Call DefaultConfig from internal package
+		if err := internal.SaveConfig(defaultConfig, configFilePath); err != nil {
+			log.Fatalf("Failed to create default config: %v", err)
+		}
+	}
+
+	// Load the configuration
+	cfg, err := internal.LoadConfig(configFilePath) // Call LoadConfig from internal package
+	if err != nil {
+		log.Fatalf("Error loading config: %v", err)
+	}
+
+	log.Printf("Loaded Config: Host=%s, CycleTime=%d, PingTimeout=%d", cfg.Host, cfg.CycleTime, cfg.PingTimeout)
+
+	// Now you can use the loaded configuration for further processing
 }

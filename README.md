@@ -193,7 +193,7 @@ First, we need a struct that represents the configuration data. Let’s assume w
 Here’s an example struct for the configuration:
 ```Go
 // internal/config.go
-package config
+package internal
 
 import (
     "encoding/json"
@@ -205,7 +205,7 @@ import (
 // Config represents the structure of the JSON configuration file
 type Config struct {
     Host        string `json:"host"`
-    CycleTime   int    `json:"cycle_time"`  // Ping cycle time in seconds
+    CycleTime   int    `json:"cycle_time_seconds"`  // Ping cycle time in seconds
     PingTimeout int    `json:"ping_timeout"` // Ping timeout in milliseconds
 }
 
@@ -263,4 +263,65 @@ func DefaultConfig() *Config {
     }
 }
 ```
+
+### 3. Use the configuration in the main function
+Now, let's modify the cmd/main.go to load the configuration when the application starts and save it when the user makes changes (e.g., through the GUI).
+
+Here’s an example of how to load the configuration and handle the scenario where the configuration file does not exist yet:
+
+```Go
+// cmd/main.go
+package main
+
+import (
+	"log"
+	"os"
+
+	"github.com/manuel-harsch/go-ping-app/internal"
+)
+
+const configFilePath = "config.json"
+
+func main() {
+	// Check if the configuration file exists
+	if _, err := os.Stat(configFilePath); os.IsNotExist(err) {
+		// File does not exist, create a default configuration
+		log.Println("Config file not found, creating default config.")
+		defaultConfig := internal.DefaultConfig() // Call DefaultConfig from internal package
+		if err := internal.SaveConfig(defaultConfig, configFilePath); err != nil {
+			log.Fatalf("Failed to create default config: %v", err)
+		}
+	}
+
+	// Load the configuration
+	cfg, err := internal.LoadConfig(configFilePath) // Call LoadConfig from internal package
+	if err != nil {
+		log.Fatalf("Error loading config: %v", err)
+	}
+
+	log.Printf("Loaded Config: Host=%s, CycleTime=%d ms, PingTimeout=%d ms", cfg.Host, cfg.CycleTime, cfg.PingTimeout)
+
+	// Now you can use the loaded configuration for further processing
+}
+```
+
+### 4. JSON configuration file format
+The config.json file will look something like this when saved:
+```JSON
+{
+  "host": "8.8.8.8",
+  "cycle_time_seconds": 5,
+  "ping_timeout": 1000
+}
+```
+
+### 5. Testing the setup
+To test the setup:
+
+- Delete the config.json file (if it exists) to see if the default configuration is created.
+- Run the application again
+
+> go run cmd/main.go
+
+Modify the ***config.json*** file and reload the application to confirm that it reads the updated configuration.
 

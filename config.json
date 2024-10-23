@@ -1,0 +1,6 @@
+{
+    "cycle_time_milliseconds": 1000,
+    "host": "8.8.8.8",
+    "ping_timeout_milliseconds": 5000
+}
+  
