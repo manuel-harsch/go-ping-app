@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ping App</title>
+    <script>
+        async function loadConfig() {
+            const response = await fetch('/api/config');
+            const config = await response.json();
+            document.getElementById('host').value = config.host;
+            document.getElementById('cycle_time').value = config.cycle_time_milliseconds;
+            document.getElementById('ping_timeout').value = config.ping_timeout_milliseconds;
+        }
+
+        async function saveConfig() {
+            const host = document.getElementById('host').value;
+            const cycleTime = document.getElementById('cycle_time').value;
+            const pingTimeout = document.getElementById('ping_timeout').value;
+            const config = {
+                host: host,
+                cycle_time_milliseconds: parseInt(cycleTime),
+                ping_timeout_milliseconds: parseInt(pingTimeout)
+            };
+
+            const response = await fetch('/api/config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(config)
+            });
+
+            if (response.ok) {
+                alert("Configuration saved successfully!");
+            } else {
+                alert("Failed to save configuration.");
+            }
+        }
+
+        async function startPing() {
+            const response = await fetch('/api/ping/start', {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                alert("Ping started!");
+            } else {
+                alert("Failed to start ping.");
+            }
+        }
+
+        async function stopPing() {
+            const response = await fetch('/api/ping/stop', {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                alert("Ping stopped!");
+            } else {
+                alert("Failed to stop ping.");
+            }
+        }
+
+        window.onload = loadConfig;
+    </script>
+</head>
+<body>
+    <h1>Ping App Configuration</h1>
+    <label>Host: <input type="text" id="host" /></label><br>
+    <label>Cycle Time (ms): <input type="number" id="cycle_time" /></label><br>
+    <label>Ping Timeout (ms): <input type="number" id="ping_timeout" /></label><br>
+    <button onclick="saveConfig()">Save Configuration</button><br><br>
+
+    <h2>Ping Control</h2>
+    <button onclick="startPing()">Start Ping</button>
+    <button onclick="stopPing()">Stop Ping</button>
+</body>
+</html>

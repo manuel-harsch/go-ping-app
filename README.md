@@ -325,3 +325,241 @@ To test the setup:
 
 Modify the ***config.json*** file and reload the application to confirm that it reads the updated configuration.
 
+
+## Implement the Webserver with Routes for the GUI and API
+We will set up:
+
+- A web server using Gin (or the standard net/http package).
+- API routes for:
+    - Getting and updating the configuration (via GUI).
+    - Starting/stopping the ping process.
+- Serving the static HTML files (the GUI).
+
+### Step-by-Step Implementation:
+
+#### 1. Install Gin:
+
+If you haven’t already, install Gin for building the web server.
+> go get github.com/gin-gonic/gin
+
+#### 2. Modify main.go to Set Up the Webserver:
+
+We’ll now update the ***cmd/main.go*** file to:
+- Serve the GUI (an HTML file).
+- Provide API routes to fetch/update the configuration.
+- Provide API routes for starting/stopping the ping process.
+
+Update main.go as follows:
+```Go
+// cmd/main.go
+package main
+
+import (
+	"log"
+	"os"
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+	"github.com/manuel-harsch/go-ping-app/internal"
+)
+
+const configFilePath = "config.json"
+
+func main() {
+	// Check if the configuration file exists
+	if _, err := os.Stat(configFilePath); os.IsNotExist(err) {
+		// File does not exist, create a default configuration
+		log.Println("Config file not found, creating default config.")
+		defaultConfig := internal.DefaultConfig() // Call DefaultConfig from internal package
+		if err := internal.SaveConfig(defaultConfig, configFilePath); err != nil {
+			log.Fatalf("Failed to create default config: %v", err)
+		}
+	}
+
+	// Load the configuration
+	cfg, err := internal.LoadConfig(configFilePath) // Call LoadConfig from internal package
+	if err != nil {
+		log.Fatalf("Error loading config: %v", err)
+	}
+
+	// Set up the Gin web server
+	router := gin.Default()
+
+	// Serve static files (the GUI)
+	router.Static("/static", "./assets/static")
+
+	// API: Fetch current configuration
+	router.GET("/api/config", func(c *gin.Context) {
+		c.JSON(http.StatusOK, cfg)
+	})
+
+	// API: Update the configuration
+	router.POST("/api/config", func(c *gin.Context) {
+		var newConfig internal.Config
+		if err := c.BindJSON(&newConfig); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid configuration data"})
+			return
+		}
+
+		// Save the new configuration to the file
+		if err := internal.SaveConfig(&newConfig, configFilePath); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save config"})
+			return
+		}
+
+		// Update the in-memory config (so changes apply without restart)
+		cfg = &newConfig
+		c.JSON(http.StatusOK, cfg)
+	})
+
+	// API: Start ping process
+	router.POST("/api/ping/start", func(c *gin.Context) {
+		// Logic to start the ping process would go here
+		c.JSON(http.StatusOK, gin.H{"message": "Ping started"})
+	})
+
+	// API: Stop ping process
+	router.POST("/api/ping/stop", func(c *gin.Context) {
+		// Logic to stop the ping process would go here
+		c.JSON(http.StatusOK, gin.H{"message": "Ping stopped"})
+	})
+
+	// Start the web server
+	router.Run(":8080")
+}
+
+```
+
+**Explanation of the Code:**
+
+**1. Serving Static Files:**
+
+- ```router.Static("/static", "./assets/static")```: 
+  This serves static files from the ```./assets/static``` directory. You can place your frontend (HTML, CSS, JS) here.
+
+**2. API Endpoints:**
+
+- ```GET /api/config```: Fetches the current configuration from memory (loaded from the JSON file).
+- ```POST /api/config```: Accepts new configuration data, updates the JSON file, and reloads the configuration into memory.
+- ```POST /api/ping/start```: An endpoint to start the ping process (we will implement the ping logic later).
+- ```POST /api/ping/stop```: An endpoint to stop the ping process.
+
+**3. Gin's JSON Handling:**
+
+- ```c.BindJSON(&newConfig)```: Binds the incoming JSON data (from the GUI/API request) to a Config struct.
+- ```c.JSON```: Sends JSON responses back to the client.
+
+**4. Starting the Server:**
+
+- ```router.Run(":8080")```: Starts the server on port 8080.
+
+---
+
+#### 3. Create a Simple HTML GUI:
+
+Let’s create a simple HTML file to serve as the frontend GUI for configuration and ping control. 
+
+Place the following file in ```assets/static/index.html```.
+
+```HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ping App</title>
+    <script>
+        async function loadConfig() {
+            const response = await fetch('/api/config');
+            const config = await response.json();
+            document.getElementById('host').value = config.host;
+            document.getElementById('cycle_time').value = config.cycle_time_milliseconds;
+            document.getElementById('ping_timeout').value = config.ping_timeout_milliseconds;
+        }
+
+        async function saveConfig() {
+            const host = document.getElementById('host').value;
+            const cycleTime = document.getElementById('cycle_time').value;
+            const pingTimeout = document.getElementById('ping_timeout').value;
+            const config = {
+                host: host,
+                cycle_time_milliseconds: parseInt(cycleTime),
+                ping_timeout_milliseconds: parseInt(pingTimeout)
+            };
+
+            const response = await fetch('/api/config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(config)
+            });
+
+            if (response.ok) {
+                alert("Configuration saved successfully!");
+            } else {
+                alert("Failed to save configuration.");
+            }
+        }
+
+        async function startPing() {
+            const response = await fetch('/api/ping/start', {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                alert("Ping started!");
+            } else {
+                alert("Failed to start ping.");
+            }
+        }
+
+        async function stopPing() {
+            const response = await fetch('/api/ping/stop', {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                alert("Ping stopped!");
+            } else {
+                alert("Failed to stop ping.");
+            }
+        }
+
+        window.onload = loadConfig;
+    </script>
+</head>
+<body>
+    <h1>Ping App Configuration</h1>
+    <label>Host: <input type="text" id="host" /></label><br>
+    <label>Cycle Time (ms): <input type="number" id="cycle_time" /></label><br>
+    <label>Ping Timeout (ms): <input type="number" id="ping_timeout" /></label><br>
+    <button onclick="saveConfig()">Save Configuration</button><br><br>
+
+    <h2>Ping Control</h2>
+    <button onclick="startPing()">Start Ping</button>
+    <button onclick="stopPing()">Stop Ping</button>
+</body>
+</html>
+
+```
+**Explanation:**
+
+- **JavaScript for API Interaction:**
+  - Fetches the configuration from the ```/api/config``` endpoint and fills the HTML form with current values.
+  - Allows the user to update the configuration and save it by sending a ```POST``` request to ```/api/config```.
+  - Provides buttons to start/stop the ping process, interacting with ```/api/ping/start``` and ```/api/ping/stop```.
+
+---
+#### 4. Testing the Application:
+
+1. Run your Go application:
+
+	> go run cmd/main.go
+
+2. Open your browser and go to ```http://localhost:8080/static/index.html``` to see the simple GUI.
+
+3. You should be able to:
+   - View the current configuration.
+   - Update and save the configuration.
+   - Use the start/stop buttons (we will implement the actual ping logic in the next step).
